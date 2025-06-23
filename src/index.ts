@@ -19,6 +19,13 @@ type Pool = {
   tvl?: number;
 };
 
+const FACTORY: Record<number, Address> = {
+  [mainnet.id]: FACTORY_ADDRESS,
+  [sepolia.id]: '0x0227628f3F023bb0B980b67D528571c95c6DaC1c',
+  [bsc.id]: '0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7',
+  [bscTestnet.id]: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865',
+};
+
 const WRAPPED_NATIVE_CURRENCY: Record<number, Token> = {
   [mainnet.id]: {
     address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
@@ -39,9 +46,9 @@ const WRAPPED_NATIVE_CURRENCY: Record<number, Token> = {
     decimals: 18,
   },
   [bscTestnet.id]: {
-    address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
-    name: 'Wrapped Ether',
-    symbol: 'WETH',
+    address: '0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd',
+    name: 'Wrapped BNB',
+    symbol: 'WBNB',
     decimals: 18,
   },
 };
@@ -161,7 +168,7 @@ class UniswapV3Pool {
 
     const contracts = FEE_TIERS.map(fee => ({
       abi: FACTORY_ABI,
-      address: FACTORY_ADDRESS,
+      address: FACTORY[this.chain.id],
       functionName: 'getPool',
       args: [baseToken.address, quoteToken.address, fee],
     }));
@@ -314,4 +321,5 @@ class UniswapV3Pool {
   }
 }
 
-new UniswapV3Pool(mainnet).getPools('0x1f9840a85d5af5bf1d1762f925bdaddc4201f984');
+// new UniswapV3Pool(mainnet).getPools('0x1f9840a85d5af5bf1d1762f925bdaddc4201f984');
+new UniswapV3Pool(sepolia).getPools('0xb6ea753c0add44c29fc63b3b31b15f2787d8c2b5');
