@@ -1,6 +1,6 @@
-import { createPublicClient, http, Chain, PublicClient, Address, erc20Abi } from 'viem';
-import { mainnet, sepolia, bsc, bscTestnet } from 'viem/chains';
-import { FeeAmount, FACTORY_ADDRESS, ADDRESS_ZERO, Pool as V3Pool } from '@uniswap/v3-sdk';
+import { createPublicClient, http, Chain, PublicClient, Address, erc20Abi, parseUnits } from 'viem';
+import { mainnet, sepolia, bsc, bscTestnet, base, baseSepolia } from 'viem/chains';
+import { FeeAmount, FACTORY_ADDRESS, ADDRESS_ZERO, Pool as V3Pool, Trade } from '@uniswap/v3-sdk';
 import { Token as V3Token } from '@uniswap/sdk-core';
 
 import { FACTORY_ABI, POOL_ABI } from './abi';
@@ -24,6 +24,8 @@ const FACTORY: Record<number, Address> = {
   [sepolia.id]: '0x0227628f3F023bb0B980b67D528571c95c6DaC1c',
   [bsc.id]: '0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7',
   [bscTestnet.id]: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865',
+  [base.id]: '0x33128a8fC17869897dcE68Ed026d694621f6FDfD',
+  [baseSepolia.id]: '0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24',
 };
 
 const WRAPPED_NATIVE_CURRENCY: Record<number, Token> = {
@@ -51,9 +53,21 @@ const WRAPPED_NATIVE_CURRENCY: Record<number, Token> = {
     symbol: 'WBNB',
     decimals: 18,
   },
+  [base.id]: {
+    address: '0x4200000000000000000000000000000000000006',
+    name: 'Wrapped Ether',
+    symbol: 'WETH',
+    decimals: 18,
+  },
+  [baseSepolia.id]: {
+    address: '0x4200000000000000000000000000000000000006',
+    name: 'Wrapped Ether',
+    symbol: 'WETH',
+    decimals: 18,
+  },
 };
 
-const FEE_TIERS = [FeeAmount.LOWEST, FeeAmount.LOW, FeeAmount.MEDIUM, FeeAmount.HIGH];
+const FEE_TIERS = [FeeAmount.LOWEST, FeeAmount.LOW, 2500, FeeAmount.MEDIUM, FeeAmount.HIGH];
 
 function chunkArray<T>(arr: Array<T>, size: number): Array<Array<T>> {
   const result = [];
@@ -277,19 +291,29 @@ class UniswapV3Pool {
           throw Error('Slot0 type error');
         }
 
+        const token = new V3Token(this.chain.id, this.token.address, this.token.decimals);
+        const wrappedToken = new V3Token(
+          this.chain.id,
+          this.wrappedToken.address,
+          this.wrappedToken.decimals
+        );
+
         const v3Pool = new V3Pool(
-          new V3Token(this.chain.id, this.token.address, this.token.decimals),
-          new V3Token(this.chain.id, this.wrappedToken.address, this.wrappedToken.decimals),
+          token,
+          wrappedToken,
           pool.fee,
           slot0.result[0].toString(), //sqrtPriceX96
           pool.liquidity.toString(),
           slot0.result[1] //tick
         );
 
-        const tokenPerWrapped = v3Pool.token0Price.toSignificant(6);
-        pool['price'] = tokenPerWrapped;
+        const wrappedPerToken = v3Pool.token0.equals(wrappedToken)
+          ? v3Pool.token1Price.toSignificant(6)
+          : v3Pool.token0Price.toSignificant(6);
 
-        const priceUSD = parseFloat(tokenPerWrapped) * nativePrice;
+        pool['price'] = wrappedPerToken;
+
+        const priceUSD = parseFloat(wrappedPerToken) * nativePrice;
         pool['priceUSD'] = priceUSD;
         pool['tvl'] = priceUSD * pool.tokenReserves + nativePrice * pool.wrappedReserves;
         accum.push(pool);
@@ -322,4 +346,7 @@ class UniswapV3Pool {
 }
 
 // new UniswapV3Pool(mainnet).getPools('0x1f9840a85d5af5bf1d1762f925bdaddc4201f984');
-new UniswapV3Pool(sepolia).getPools('0xb6ea753c0add44c29fc63b3b31b15f2787d8c2b5');
+// new UniswapV3Pool(sepolia).getPools('0x073725a3bcc2b70f72d095801f4a72690ed0c530');
+// new UniswapV3Pool(bscTestnet).getPools('0xf673def6e208480026287265913f8a5682cfbb15');
+// new UniswapV3Pool(baseSepolia).getPools('0xf7f015c2f6e18617c2baa65cf51ddb36890a4f36');
+new UniswapV3Pool(base).getPools('0x833589fcd6edb6e08f4c7c32d4f71b54bda02913');
